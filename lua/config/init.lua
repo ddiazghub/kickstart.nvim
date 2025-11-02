@@ -83,9 +83,9 @@ I hope you enjoy your Neovim journey,
 P.S. You can delete this when you're done too. It's your config now! :)
 --]]
 
-require 'config.options'
-require 'config.keymaps'
-require 'config.autocmds'
+require 'options'
+require 'keymaps'
+require 'autocmds'
 require 'core.lazy'
 
 -- The line beneath this is called `modeline`. See `:help modeline`
