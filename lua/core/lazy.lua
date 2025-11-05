@@ -36,6 +36,7 @@ require('lazy').setup {
     { import = 'plugins' },
     { import = 'plugins.lsp' },
     { import = 'plugins.theme' },
+    { import = 'plugins.ui' },
   },
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
@@ -55,5 +56,7 @@ require('lazy').setup {
       task = '📌',
       lazy = '💤 ',
     },
+    border = 'rounded',
   },
+  checker = { enabled = true },
 }
