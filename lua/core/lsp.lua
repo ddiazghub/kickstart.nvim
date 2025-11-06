@@ -1,5 +1,19 @@
-vim.lsp.enable {
+vim.lsp.enable { -- Hyprland
+  'hyprls',
+
+  -- Neovim and Lua
   'lua_ls',
+  'stylua',
+
+  -- TS/JS ecosystem
+  'vtsls',
+  'biome',
+
+  -- Markup
+  'yamlls',
+  'jsonls',
+  'superhtml',
+  'cssls',
 }
 
 -- Diagnostic Config

@@ -196,7 +196,7 @@ local snacks = {
       function()
         Snacks.gitbrowse()
       end,
-      desc = '[G]it: Browse',
+      desc = '[G]it: [B]rowse',
       mode = { 'n', 'v' },
     },
     {
@@ -606,20 +606,7 @@ local snacks = {
   end,
 }
 
--- [[ Formatting ]]
-local conform = {
-  {
-    '<leader>lf',
-    function()
-      require('conform').format { async = true, lsp_format = 'fallback' }
-    end,
-    mode = '',
-    desc = '[L]SP: [F]ormat buffer',
-  },
-}
-
 return {
   lsp = lsp,
   snacks = snacks,
-  conform = conform,
 }

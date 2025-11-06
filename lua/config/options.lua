@@ -63,7 +63,6 @@ vim.o.winblend = 0 -- Set floating window transparency to 0
 vim.o.pumblend = 0 -- Set popup menu transparency to 0
 vim.o.lazyredraw = true -- Do not redraw UI while executing macros
 vim.o.synmaxcol = 300 -- Syntax highlight up to 300 characters in a single line
-vim.o.showtabline = 2
 
 -- Files
 vim.o.backup = false -- Don't create backup files

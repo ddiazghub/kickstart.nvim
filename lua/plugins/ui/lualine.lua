@@ -2,21 +2,17 @@
 ---@type LazySpec
 return {
   'nvim-lualine/lualine.nvim',
-  dependencies = { 'nvim-tree/nvim-web-devicons' },
+  dependencies = { 'nvim-mini/mini.icons' },
   config = function()
-    -- Eviline config for lualine
-    -- Author: shadmansaleh
-    -- Credit: glepnir
-    local lualine = require 'lualine'
-
-    -- Color table for highlights
     local colors = {
-      bg = '#202328',
-      fg = '#bbc2cf',
-      darkgray = '#343434',
+      black = '#383a42',
+      white = '#f3f3f3',
+      light_green = '#83ff98',
+      darkgray = '#555555',
       gray = '#888888',
-      yellow = '#ECBE7B',
-      cyan = '#008080',
+      light_gray = '#BBBBBB',
+      yellow = '#ecce7b',
+      cyan = '#00ffff',
       darkblue = '#081633',
       green = '#98be65',
       orange = '#FF8800',
@@ -26,322 +22,282 @@ return {
       red = '#ec5f67',
     }
 
-    local mode_color = {
-      n = colors.red,
-      i = colors.green,
-      v = colors.blue,
-      [''] = colors.blue,
-      V = colors.blue,
-      c = colors.magenta,
-      no = colors.red,
-      s = colors.orange,
-      S = colors.orange,
-      [''] = colors.orange,
-      ic = colors.yellow,
-      R = colors.violet,
-      Rv = colors.violet,
-      cv = colors.red,
-      ce = colors.red,
-      r = colors.cyan,
-      rm = colors.cyan,
-      ['r?'] = colors.cyan,
-      ['!'] = colors.red,
-      t = colors.red,
+    local theme = {
+      normal = {
+        a = { fg = colors.black, bg = colors.blue, gui = 'bold' },
+        b = { fg = colors.blue, bg = colors.black, gui = 'bold' },
+        c = { fg = colors.white, bg = colors.black, gui = 'bold' },
+        z = { fg = colors.black, bg = colors.blue, gui = 'bold' },
+      },
+      insert = {
+        a = { fg = colors.black, bg = colors.green, gui = 'bold' },
+        b = { fg = colors.green, bg = colors.black, gui = 'bold' },
+      },
+      visual = {
+        a = { fg = colors.black, bg = colors.orange, gui = 'bold' },
+        b = { fg = colors.orange, bg = colors.black, gui = 'bold' },
+      },
+      replace = {
+        a = { fg = colors.black, bg = colors.red, gui = 'bold' },
+        b = { fg = colors.red, bg = colors.black, gui = 'bold' },
+      },
+      command = {
+        a = { fg = colors.black, bg = colors.violet, gui = 'bold' },
+        b = { fg = colors.violet, bg = colors.black, gui = 'bold' },
+      },
+      select = {
+        a = { fg = colors.black, bg = colors.cyan, gui = 'bold' },
+        b = { fg = colors.cyan, bg = colors.black, gui = 'bold' },
+      },
     }
 
-    local conditions = {
-      buffer_not_empty = function()
-        return vim.fn.empty(vim.fn.expand '%:t') ~= 1
-      end,
-      hide_in_width = function()
-        return vim.fn.winwidth(0) > 80
-      end,
-      check_git_workspace = function()
-        local filepath = vim.fn.expand '%:p:h'
-        local gitdir = vim.fn.finddir('.git', filepath .. ';')
-        return gitdir and #gitdir > 0 and #gitdir < #filepath
-      end,
-    }
+    local function get_mode()
+      local mode_names = {
+        n = 'normal',
+        i = 'insert',
+        v = 'visual',
+        ['\22'] = 'visual',
+        r = 'replace',
+        c = 'command',
+        s = 'select',
+        ['\19'] = 'select',
+      }
+      local mode = vim.api.nvim_get_mode().mode
+      local first_char = mode:sub(1, 1):lower()
+      return mode_names[mode] or mode_names[first_char]
+    end
 
-    -- Config
-    local config = {
+    local empty = require('lualine.component'):extend()
+    function empty:draw(default_highlight)
+      self.status = ''
+      self.applied_separator = ''
+      self:apply_highlights(default_highlight)
+      self:apply_section_separators()
+      return self.status
+    end
+
+    -- Put proper separators and gaps between components in sections
+    local function process_sections(sections)
+      for name, section in pairs(sections) do
+        local left = name:sub(9, 10) < 'x'
+        for pos = 1, name ~= 'lualine_z' and #section or #section - 1 do
+          table.insert(section, pos * 2, { empty, color = { fg = colors.white, bg = colors.black } })
+        end
+        for id, comp in ipairs(section) do
+          if type(comp) ~= 'table' then
+            comp = { comp }
+            section[id] = comp
+          end
+          comp.separator = left and { right = '' } or { left = '' }
+        end
+      end
+      return sections
+    end
+
+    local function search_result()
+      local cword = vim.fn.expand '<cword>'
+      if vim.v.hlsearch == 0 then
+        return (cword and cword ~= '') and cword or '--'
+      end
+      local last_search = vim.fn.getreg '/'
+      if not last_search or last_search == '' then
+        return cword ~= '' and cword or '--'
+      end
+      local searchcount = vim.fn.searchcount { maxcount = 9999 }
+      return last_search .. '(' .. searchcount.current .. '/' .. searchcount.total .. ')'
+    end
+
+    local function modified()
+      if vim.bo.modified then
+        return '+'
+      elseif vim.bo.modifiable == false or vim.bo.readonly == true then
+        return '-'
+      end
+      return ''
+    end
+
+    require('lualine').setup {
       options = {
-        -- Disable sections and component separators
+        theme = theme,
         component_separators = '',
-        section_separators = '',
-        theme = {
-          -- We are going to use lualine_c an lualine_x as left and
-          -- right section. Both are highlighted by c theme .  So we
-          -- are just setting default looks o statusline
-          normal = { c = { fg = colors.fg, bg = colors.bg } },
-          inactive = { c = { fg = colors.fg, bg = colors.bg } },
+        section_separators = { left = '', right = '' },
+      },
+      sections = process_sections {
+        lualine_a = { 'mode' },
+        lualine_b = {
+          {
+            'branch',
+            icon = '',
+            fmt = function(branch)
+              if branch == '' or branch == nil then
+                return '󱓌 no repo'
+              end
+              return ' ' .. branch
+            end,
+          },
+          {
+            -- Git diff component using gitsigns, with highlight-based colors and fallbacks
+            function()
+              local git = vim.b.gitsigns_status_dict
+
+              -- Not a git repo
+              if not git then
+                return '------'
+              end
+
+              local added, changed, removed = git.added or 0, git.changed or 0, git.removed or 0
+
+              -- No diffs
+              if added == 0 and changed == 0 and removed == 0 then
+                return 'no changes'
+              end
+
+              -- Build string with highlights
+              local parts = {}
+              if added > 0 then
+                table.insert(parts, string.format('%%#StatuslineDiffAdd#+%d%%*', added))
+              end
+              if changed > 0 then
+                table.insert(parts, string.format('%%#StatuslineDiffChange#~%d%%*', changed))
+              end
+              if removed > 0 then
+                table.insert(parts, string.format('%%#StatuslineDiffDelete#-%d%%*', removed))
+              end
+
+              return table.concat(parts, string.format '%%#StatuslineDiffAdd# %%*')
+            end,
+            color = { bg = colors.darkgray, gui = 'bold' },
+          },
+          {
+            -- Current Project/Neovim CWD
+            function()
+              local icon = ' '
+              local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ':t') or '[No Project]'
+
+              -- Define custom highlight with no background
+              vim.api.nvim_set_hl(0, 'StatuslineProjectIcon', { fg = colors.blue, bg = colors.black })
+
+              return string.format('%%#StatuslineProjectIcon#%s%%#StatuslineProjectName# %s/', icon, project_name)
+            end,
+            cond = function()
+              return vim.fn.getcwd() ~= ''
+            end,
+          },
+          {
+            function()
+              local buf_path = vim.fn.expand '%:p'
+              if buf_path == '' then
+                return '/'
+              end
+
+              -- Get current working directory
+              local cwd = vim.fn.getcwd()
+
+              -- Get directory of the buffer
+              local buf_dir = vim.fn.fnamemodify(buf_path, ':h')
+
+              -- Compute relative path from cwd
+              local rel_dir = vim.fn.fnamemodify(buf_dir, ':.')
+              if rel_dir == '' or rel_dir == '.' then
+                return '/' -- file is in project root, so skip
+              end
+
+              return rel_dir .. '/'
+            end,
+            file_status = false,
+            path = 1,
+            color = function()
+              return { bg = theme[get_mode()].b.fg, fg = colors.black, gui = 'bold' }
+            end,
+          },
+          {
+            function()
+              local icons = require 'mini.icons'
+              local ft, filename = vim.bo.filetype, vim.fn.expand '%:t'
+              local icon, hl = icons.get('filetype', ft)
+              local fg = hl.fg or vim.api.nvim_get_hl(0, { name = hl }).fg
+              vim.api.nvim_set_hl(0, 'StatuslineFileIcon', { fg = fg, bg = colors.darkgray, bold = true })
+
+              return string.format('%%#StatuslineFileIcon#%s%%#StatuslineFilename# %s', icon or '', filename ~= '' and filename or '[No Name]')
+            end,
+            color = { bg = colors.black },
+          },
+          { modified, color = { bg = colors.red } },
+          {
+            'diagnostics',
+            source = { 'nvim' },
+            sections = { 'error' },
+            diagnostics_color = { error = { bg = colors.red, fg = colors.white } },
+          },
+          {
+            'diagnostics',
+            source = { 'nvim' },
+            sections = { 'warn' },
+            diagnostics_color = { warn = { bg = colors.orange, fg = colors.white } },
+          },
+          {
+            '%w',
+            cond = function()
+              return vim.wo.previewwindow
+            end,
+          },
+          {
+            '%r',
+            cond = function()
+              return vim.bo.readonly
+            end,
+          },
+          {
+            '%q',
+            cond = function()
+              return vim.bo.buftype == 'quickfix'
+            end,
+          },
+        },
+        lualine_c = {},
+        lualine_x = {},
+        lualine_y = {
+          { -- Search status or current word under cursor
+            search_result,
+            color = function()
+              return { bg = theme[get_mode()].b.fg, fg = colors.black, gui = 'bold' }
+            end,
+          },
+          { -- LSP Status
+            function()
+              local clients = vim.lsp.get_clients { bufnr = 0 }
+
+              if next(clients) == nil then
+                return '  No Active LSP'
+              end
+
+              local names = {}
+              for _, client in ipairs(clients) do
+                table.insert(names, client.name)
+              end
+              return '  ' .. table.concat(names, ', ')
+            end,
+            color = function()
+              return { fg = theme[get_mode()].b.fg, bg = colors.darkgray, gui = 'bold' }
+            end,
+          },
+        },
+        lualine_z = {
+          { -- Document Position
+            function()
+              return string.format('󰧮 %d/%d:%d', vim.fn.line '.', vim.fn.line '$', vim.fn.col '.')
+            end,
+            color = function()
+              return { bg = colors.black, fg = theme[get_mode()].b.fg, gui = 'bold' }
+            end,
+          },
+          '%p%%', -- Position %
         },
       },
-      sections = {
-        -- these are to remove the defaults
-        lualine_a = {},
-        lualine_b = {},
-        lualine_y = {},
-        lualine_z = {},
-        -- These will be filled later
-        lualine_c = {},
-        lualine_x = {},
-      },
       inactive_sections = {
-        -- these are to remove the defaults
-        lualine_a = {},
-        lualine_b = {},
-        lualine_y = {},
-        lualine_z = {},
-        lualine_c = {},
+        lualine_c = { '%f %y %m' },
         lualine_x = {},
       },
     }
-
-    -- Inserts a component in lualine_c at left section
-    local function ins_left(component)
-      table.insert(config.sections.lualine_c, component)
-    end
-
-    -- Inserts a component in lualine_x at right section
-    local function ins_right(component)
-      table.insert(config.sections.lualine_x, component)
-    end
-
-    ins_left {
-      function()
-        return ''
-      end,
-      color = function()
-        return { fg = mode_color[vim.fn.mode()] }
-      end, -- Sets highlighting of component
-      padding = { left = 0, right = 0 }, -- We don't need space before this
-    }
-
-    ins_left {
-      -- mode component
-      function()
-        local mode_text = {
-          n = 'NORMAL',
-          i = 'INSERT',
-          v = 'VISUAL',
-          [''] = 'V-BLOCK',
-          V = 'V-LINE',
-          c = 'COMMAND',
-          no = 'NORMAL',
-          s = 'SELECT',
-          S = 'S-LINE',
-          [''] = 'S-BLOCK',
-          -- ic = colors.yellow,
-          R = 'REPLACE',
-          Rv = 'REPLACE',
-          -- cv = colors.red,
-          -- ce = colors.red,
-          r = 'REPLACE',
-          -- rm = colors.cyan,
-          -- ['r?'] = colors.cyan,
-          -- ['!'] = colors.red,
-          t = 'TERMINAL',
-        }
-
-        return mode_text[vim.fn.mode()] or 'NEOVIM'
-      end,
-      color = function()
-        return { bg = mode_color[vim.fn.mode()], fg = colors.bg, gui = 'bold' }
-      end,
-      padding = { left = 1, right = 1 },
-    }
-
-    ins_left {
-      function()
-        return ''
-      end,
-      color = function()
-        return { fg = mode_color[vim.fn.mode()], bg = colors.darkgray }
-      end,
-      padding = { left = 0, right = 0 },
-    }
-
-    ins_left {
-      'filename',
-      cond = conditions.buffer_not_empty,
-      color = { bg = colors.darkgray, gui = 'bold' },
-      file_status = true,
-      fmt = function(str)
-        local icon, iconhl = require('nvim-web-devicons').get_icon(str)
-        local fg = vim.api.nvim_get_hl_by_name(iconhl, true).foreground
-        local custom_hl = 'MyFileComponentHL'
-        vim.cmd(string.format('highlight %s guifg=%s guibg=%s gui=bold', custom_hl, string.format('#%06x', fg), colors.darkgray))
-
-        if icon then
-          -- %#HL# … %* sets highlight for this segment
-          return '%#' .. custom_hl .. '#' .. icon .. ' ' .. str .. '%*'
-        else
-          return '%#' .. custom_hl .. '#' .. str .. '%*'
-        end
-      end,
-    }
-
-    ins_left {
-      function()
-        return ''
-      end,
-      color = { fg = colors.darkgray, bg = colors.blue },
-      padding = { left = 0, right = 0 },
-    }
-
-    ins_left {
-      -- filesize component
-      'filesize',
-      cond = conditions.buffer_not_empty,
-      color = { bg = colors.blue, fg = colors.bg, gui = 'bold' },
-    }
-
-    ins_left { 'location', color = { fg = colors.bg, bg = colors.blue, gui = 'bold' } }
-
-    -- interpolate between two hex colors based on t in [0,1]
-    local function lerp_color(color1, color2, t)
-      local function hex_to_rgb(hex)
-        hex = hex:gsub('#', '')
-        return tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16)
-      end
-
-      local function rgb_to_hex(r, g, b)
-        return string.format('#%02x%02x%02x', r, g, b)
-      end
-
-      local r1, g1, b1 = hex_to_rgb(color1)
-      local r2, g2, b2 = hex_to_rgb(color2)
-
-      local r = math.floor(r1 + (r2 - r1) * t + 0.5)
-      local g = math.floor(g1 + (g2 - g1) * t + 0.5)
-      local b = math.floor(b1 + (b2 - b1) * t + 0.5)
-
-      return rgb_to_hex(r, g, b)
-    end
-
-    local function get_cursor_gradient()
-      local line = vim.fn.line '.' -- current line
-      local total = vim.fn.line '$' -- total lines
-      return (line - 1) / (math.max(total - 1, 1)) -- t in [0,1]
-    end
-
-    local function gradient_fg(color1, color2)
-      return lerp_color(color1, color2, get_cursor_gradient())
-    end
-
-    -- Left 
-    ins_left {
-      function()
-        return ''
-      end,
-      color = function()
-        return { fg = colors.blue, bg = gradient_fg(colors.green, colors.red), gui = 'bold' }
-      end,
-      padding = { left = 0, right = 0 },
-    }
-
-    -- progress
-    ins_left {
-      'progress',
-      color = function()
-        return { fg = colors.bg, bg = gradient_fg(colors.green, colors.red), gui = 'bold' }
-      end,
-    }
-
-    -- Right 
-    ins_left {
-      function()
-        return ''
-      end,
-      color = function()
-        return { bg = colors.bg, fg = gradient_fg(colors.green, colors.red), gui = 'bold' }
-      end,
-      padding = { left = 0, right = 0 },
-    }
-
-    ins_left {
-      'diagnostics',
-      sources = { 'nvim_diagnostic' },
-      symbols = { error = ' ', warn = ' ', info = ' ' },
-      diagnostics_color = {
-        error = { fg = colors.red },
-        warn = { fg = colors.yellow },
-        info = { fg = colors.cyan },
-      },
-    }
-
-    -- Insert mid section. You can make any number of sections in neovim :)
-    -- for lualine it's any number greater then 2
-    ins_left {
-      function()
-        return '%='
-      end,
-    }
-
-    ins_left {
-      -- Lsp server name .
-      function()
-        local msg = 'No Active Lsp'
-        local buf_ft = vim.api.nvim_get_option_value('filetype', { buf = 0 })
-        local clients = vim.lsp.get_clients()
-        if next(clients) == nil then
-          return msg
-        end
-        for _, client in ipairs(clients) do
-          local filetypes = client.config.filetypes
-          if filetypes and vim.fn.index(filetypes, buf_ft) ~= -1 then
-            return client.name
-          end
-        end
-        return msg
-      end,
-      icon = ' LSP:',
-      color = { fg = '#ffffff', gui = 'bold' },
-    }
-
-    -- Add components to right sections
-    ins_right {
-      'o:encoding', -- option component same as &encoding in viml
-      fmt = string.upper, -- I'm not sure why it's upper case either ;)
-      cond = conditions.hide_in_width,
-      color = { fg = colors.green, gui = 'bold' },
-    }
-
-    ins_right {
-      'fileformat',
-      fmt = string.upper,
-      icons_enabled = false, -- I think icons are cool but Eviline doesn't have them. sigh
-      color = { fg = colors.green, gui = 'bold' },
-    }
-
-    ins_right {
-      'branch',
-      icon = '',
-      color = { fg = colors.violet, gui = 'bold' },
-    }
-
-    ins_right {
-      'diff',
-      -- Is it me or the symbol for modified us really weird
-      symbols = { added = ' ', modified = '󰝤 ', removed = ' ' },
-      diff_color = {
-        added = { fg = colors.green },
-        modified = { fg = colors.orange },
-        removed = { fg = colors.red },
-      },
-      cond = conditions.hide_in_width,
-    }
-
-    ins_right {
-      function()
-        return '▊'
-      end,
-      color = { fg = colors.blue },
-      padding = { left = 1 },
-    }
-
-    -- Now don't forget to initialize lualine
-    lualine.setup(config)
   end,
 }

@@ -6,7 +6,11 @@ return {
     'saghen/blink.cmp',
     event = 'VimEnter',
     build = 'cargo build --release',
-    dependencies = { 'folke/lazydev.nvim', 'xzbdmw/colorful-menu.nvim', 'rafamadriz/friendly-snippets' },
+    dependencies = {
+      'folke/lazydev.nvim',
+      'xzbdmw/colorful-menu.nvim',
+      'rafamadriz/friendly-snippets',
+    },
     --- @module 'blink.cmp'
     --- @type blink.cmp.Config
     opts = {
@@ -59,11 +63,6 @@ return {
                 end,
               },
               label = {
-                kind_icon = {
-                  highlight = function(ctx)
-                    return { { group = ctx.kind_hl, priority = 20000 } }
-                  end,
-                },
                 text = function(ctx)
                   return require('colorful-menu').blink_components_text(ctx)
                 end,

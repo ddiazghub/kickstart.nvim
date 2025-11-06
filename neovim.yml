@@ -1,0 +1,36 @@
+---
+base: lua51
+
+globals:
+  vim:
+    any: true
+  _G:
+    any: true
+  dd:
+    any: true
+  jit:
+    any: true
+  _VERSION:
+    any: true
+  assert:
+    args:
+      - type: bool
+      - type: string
+        required: false
+  after_each:
+    args:
+      - type: function
+  before_each:
+    args:
+      - type: function
+  describe:
+    args:
+      - type: string
+      - type: function
+  jit:
+    args:
+      - type: string
+      - type: function
+
+  Snacks:
+    any: true

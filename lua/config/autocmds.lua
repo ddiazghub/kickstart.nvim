@@ -12,6 +12,30 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+-- Format on save
+vim.api.nvim_create_autocmd('BufWritePost', {
+  group = vim.api.nvim_create_augroup('lsp-format', {}),
+  callback = function(ev)
+    local clients = vim.lsp.get_clients { bufnr = ev.buf }
+    for _, client in ipairs(clients) do
+      if client:supports_method ('textDocument/formatting', ev.buf) then
+        vim.lsp.buf.format { bufnr = ev.buf }
+        return
+      end
+    end
+  end,
+})
+
+-- Apply my highlights when changing colorscheme
+vim.api.nvim_create_autocmd('ColorScheme', {
+  desc = 'Apply custom highlight groups when changing colorscheme',
+  group = vim.api.nvim_create_augroup('colorscheme-highlights', { clear = true }),
+  callback = function()
+    local highlights = require 'config.highlights'
+    highlights.gitsigns()
+  end,
+})
+
 -- This function gets run when an LSP attaches to a particular buffer.
 --  That is to say, every time a new file is opened that is associated with
 --  an lsp (for example, opening `main.rs` is associated with `rust_analyzer`) this
@@ -62,7 +86,8 @@ vim.api.nvim_create_autocmd('LspProgress', {
   ---@param ev {data: {client_id: integer, params: lsp.ProgressParams}}
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
-    local value = ev.data.params.value --[[@as {percentage?: number, title?: string, message?: string, kind: "begin" | "report" | "end"}]]
+    local value = ev.data.params
+    .value --[[@as {percentage?: number, title?: string, message?: string, kind: "begin" | "report" | "end"}]]
     if not client or type(value) ~= 'table' then
       return
     end
@@ -93,7 +118,8 @@ vim.api.nvim_create_autocmd('LspProgress', {
       id = 'lsp_progress',
       title = client.name,
       opts = function(notif)
-        notif.icon = #progress[client.id] == 0 and ' ' or spinner[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #spinner + 1]
+        notif.icon = #progress[client.id] == 0 and ' ' or
+        spinner[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #spinner + 1]
       end,
     })
   end,
